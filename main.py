@@ -3,6 +3,7 @@ import numpy as np
 from numpy import ndarray
 import matplotlib.pyplot as plt
 import math
+from scipy.spatial.transform import Rotation
 
 from constants import earth_mu, earth_radius, earth_j2
 
@@ -15,8 +16,62 @@ def TwoBodyODE(state: ndarray[float]) -> ndarray[float]:
     a_vector = (-earth_mu / np.linalg.norm(r_vector) ** 3) * r_vector
 
     # Return the derivative of the state
-    return np.array([state[3], state[4], state[5], a_vector[0], a_vector[1], a_vector[2]])
+    return np.array([a_vector[0], a_vector[1], a_vector[2]])
 
+def J2Pert(state: ndarray[float]) -> ndarray[float]:
+    rNorm = np.linalg.norm(state[:3])
+    rSquared = rNorm ** 2
+    zSquared = state[2] ** 2
+
+    p = (3 * earth_j2 * earth_mu * (earth_radius ** 2)) / \
+        (2 * (rSquared ** 2))
+
+    ax = ((5 * zSquared / rSquared) - 1) * (state[0] / rNorm)
+    ay = ((5 * zSquared / rSquared) - 1) * (state[1] / rNorm)
+    az = ((5 * zSquared / rSquared) - 3) * (state[2] / rNorm)
+
+    return np.array([ax, ay, az]) * p
+
+def Coes2State(coes) -> ndarray[float]:
+    sma, ecc, inc, ta, aop, raan = coes
+
+    # calculate velocity of satellite
+    h = 7641.8 * 7.22222 # km^2/s
+
+    cos_ta = np.cos(math.radians(ta))
+    sin_ta = np.sin(math.radians(ta))
+
+    r_w = h ** 2 / earth_mu / (1 + ecc * np.cos(ta)) * np.array((np.cos(ta), np.sin(ta), 0))
+    v_w = earth_mu / h * np.array((-np.sin(ta), ecc + np.cos(ta), 0))
+
+
+    # r_w = h ** 2 / earth_mu / (1 + ecc * cos_ta) * np.array((cos_ta, sin_ta, 0))
+    # v_w = earth_mu / h * np.array((-sin_ta, ecc + cos_ta, 0))
+
+    # rotate to perifocal frame
+    R = Rotation.from_euler("ZXZ", [-aop, -inc, -raan], degrees=True)
+    r_rot = r_w @ R.as_matrix()
+    v_rot = v_w @ R.as_matrix()
+
+    return np.concatenate((r_rot, v_rot))
+
+def DiffEqn(t, state):
+    rx, ry, rz, vx, vy, vz = state
+    # Get the position vector from state
+    r_vector = np.array([rx, ry, rz])
+
+    # state_dot = TwoBodyODE(state)
+    state_dot = np.zeros(6)
+
+    # Newton's Universal Law of Gravitation
+    a = TwoBodyODE(state)
+    a += J2Pert(state)
+
+    # Return the derivative of the state
+    state_dot[:3] = [vx, vy, vz]
+    state_dot[3:6] = a
+    
+    return state_dot
 
 def RK4(
     fn: Callable[[ndarray[float]], ndarray[float]],
@@ -31,193 +86,6 @@ def RK4(
     k4 = fn(t, y + k3 * h)
 
     return y + h / 6.0 * (k1 + 2 * k2 + 2 * k3 + k4)
-
-
-# def calc_J2(self, et, state):
-#     z2 = state[2] ** 2
-#     norm_r = nt.norm(state[:3])
-#     r2 = norm_r ** 2
-#     tx = state[0] / norm_r * (5 * z2 / r2 - 1)
-#     ty = state[1] / norm_r * (5 * z2 / r2 - 1)
-#     tz = state[2] / norm_r * (5 * z2 / r2 - 3)
-#     return 1.5 * self.cb['J2'] * self.cb['mu'] *\
-#         self.cb['radius'] ** 2 \
-#         / r2 ** 2 * np.array([tx, ty, tz])
-
-def J2(state):
-    rNorm = np.linalg.norm(state[:3])
-    rSquared = rNorm ** 2
-    zSquared = state[2] ** 2
-
-    p = (3 * earth_j2 * earth_mu * (earth_radius ** 2)) / \
-        (2 * (rSquared ** 2))
-
-    ax = ((5 * zSquared / rSquared) - 1) * (state[0] / rNorm)
-    ay = ((5 * zSquared / rSquared) - 1) * (state[1] / rNorm)
-    az = ((5 * zSquared / rSquared) - 3) * (state[2] / rNorm)
-
-    return np.array([ax, ay, az]) * p
-
-
-def DiffEqn(t, state):
-    rx, ry, rz, vx, vy, vz = state
-    # Get the position vector from state
-    r_vector = np.array([rx, ry, rz])
-
-    # state_dot = TwoBodyODE(state)
-    state_dot = np.zeros(6)
-
-    # Newton's Universal Law of Gravitation
-    a = (-earth_mu / np.linalg.norm(r_vector) ** 3) * r_vector
-    a += J2(state)
-
-    state_dot[:3] = [vx, vy, vz]
-    state_dot[3:6] = a
-    
-    return state_dot
-
-# function coes2state( coes ) {
-# 	let [ sma, ecc, inc, ta, aop, raan ] = coes;
-# 	sta     = Math.sin( ta );
-# 	cta     = Math.cos( ta );
-# 	p       = sma * ( 1 - Math.pow( ecc, 2 ) );
-# 	r_norm  = p / ( 1 + ecc * cta );
-# 	r_perif = math.multiply( math.matrix( [ cta, sta, 0 ] ), r_norm );
-# 	v_perif = math.multiply( math.matrix( [ -sta, ecc + cta, 0 ] ),
-# 					 Math.sqrt( CB[ 'mu' ] / p ) );
-# 	matrix  = perif2eci( raan, aop, inc );
-# 	r_ECI   = math.multiply( matrix, r_perif );
-# 	v_ECI   = math.multiply( matrix, v_perif );
-# 	return math.concat( r_ECI, v_ECI ).valueOf();
-
-# function perif2eci( raan, aop, inc ) {
-# 	matrix = math.multiply( Cz( raan ), Cx( inc ) );
-# 	return math.multiply( matrix, Cz( aop ) );
-# }
-
-# function Cx( a ) {
-# 	sa = Math.sin( a );
-# 	ca = Math.cos( a );
-# 	return math.matrix( [ 
-# 		[ 1,  0,   0 ],
-# 		[ 0, ca, -sa ],
-# 		[ 0, sa,  ca ]
-# 	] )
-# }
-
-# function Cy( a ) {
-# 	sa = Math.sin( a );
-# 	ca = Math.cos( a );
-# 	return math.matrix( [
-# 		[  ca, 0, sa ],
-# 		[   0, 1,  0 ],
-# 		[ -sa, 0, ca ]
-# 	] )
-# }
-
-# function Cz( a ) {
-# 	sa = Math.sin( a );
-# 	ca = Math.cos( a );
-# 	return math.matrix( [ 
-# 		[ ca, -sa, 0 ],
-# 		[ sa,  ca, 0 ],
-# 		[  0,   0, 1 ]
-# 	] )
-# }
-
-def Cx(a):
-    sa = math.sin(math.radians(a))
-    ca = math.cos(math.radians(a))
-    return np.array([
-        [1, 0, 0],
-        [0, ca, -sa],
-        [0, sa, ca]
-    ])
-
-def Cy(a):
-    sa = math.sin(math.radians(a))
-    ca = math.cos(math.radians(a))
-    return np.array([
-        [ca, 0, sa],
-        [0, 1, 0],
-        [-sa, 0, ca]
-    ])
-
-def Cz(a):
-    sa = math.sin(math.radians(a))
-    ca = math.cos(math.radians(a))
-    return np.array([
-        [ca, -sa, 0],
-        [sa, ca, 0],
-        [0, 0, 1]
-    ])
-
-def perif2eci(raan, aop, inc):
-    matrix = np.matmul(Cz(raan), Cx(inc))
-    return np.matmul(matrix, Cz(aop))
-
-def coes2state( coes ):
-    sma, ecc, inc, ta, aop, raan = coes
-    sta = math.sin(math.radians(ta))
-    cta = math.cos(math.radians(ta))
-    p = sma * (1 - ecc ** 2)
-    r_norm = p / (1 + ecc * cta)
-    r_perif = np.array([cta, sta, 0]) * r_norm
-    v_perif = np.array([-sta, ecc + cta, 0]) * math.sqrt(earth_mu / p)
-    matrix = perif2eci(raan, aop, inc)
-
-    r_ECI = np.matmul(matrix, r_perif)
-
-    return r_ECI
-
-
-def coes2state2( coes ):
-    sma, ecc, inc, ta, aop, raan = coes
-
-    
-    # calculate velocity of satellite
-    h = 7641.8 * 7.22222
-
-    r_w = h ** 2 / earth_mu / (1 + ecc * np.cos(math.radians(ta))) * np.array((np.cos(math.radians(ta)), np.sin(math.radians(ta)), 0))
-    v_w = earth_mu / h * np.array((-np.sin(math.radians(ta)), ecc + np.cos(math.radians(ta)), 0))
-
-    #% Direction cosine matrix
-    arr1 = np.array([
-        [ np.cos(math.radians(aop)), np.sin(math.radians(aop)), 0 ],
-        [ -np.sin(math.radians(aop)), np.cos(math.radians(aop)), 0 ],
-        [ 0, 0, 1 ]
-    ])
-    arr2 = np.array([
-        [ 1, 0, 0 ],
-        [ 0, np.cos(math.radians(inc)), np.sin(math.radians(inc)) ],
-        [ 0, -np.sin(math.radians(inc)), np.cos(math.radians(inc)) ]
-    ])
-    arr3 = np.array([
-        [ np.cos(math.radians(raan)), np.sin(math.radians(raan)), 0 ],
-        [ -np.sin(math.radians(raan)), np.cos(math.radians(raan)), 0 ],
-        [ 0, 0, 1 ]
-    ])
-
-    QXx = np.matmul(np.matmul(arr3, arr2), arr1)
-
-    # Transformation Matrix
-    QxX = np.linalg.inv(QXx)
-
-    # Geocentric equatorial position vector R
-    R = np.matmul(QxX, r_w)
-
-    # Geocentric equatorial velocity vector V
-    V = np.matmul(QxX, v_w)
-
-    # print(r_w)
-    # print(v_w)
-    # print(QXx)
-    print(R)
-    print(V)
-
-    return np.concatenate((R, V))
-
-
 
 def plot_orbits(rs, args):
     _args = {
@@ -329,25 +197,15 @@ def plot_orbits(rs, args):
 
 
 if __name__ == '__main__':
-
-#     Vo: does not apply 
-# a = 7641.80 km
-# e = 0
-# dΩ/dt = 0.1991e-6 rad/s
-# i = 98.94°
-
+    # coes = sma, ecc, inc, ta, aop, raan
     coes = [ 7641.80, 0.0, 98.94, 0, 0, 45 ]
+    # coes = [ 7641.80, 0.948, 124.05, 159.61, 303.09, 190.62 ]
 
+    # Convert orbital elements to state vector
+    statei = Coes2State(coes)
+    print(statei)
 
-
-
-    # r0_norm = earth_radius + 450.0             # km
-    r0_norm = 4992.02759388496
-    v0_norm = (earth_mu / r0_norm) ** 0.5    # km / s
-    # statei = [r0_norm, 0, 0, 0, 0, v0_norm]
-    statei = coes2state2(coes)
-    # statei = [4992.02759388496, 5434.057309954339, -1986.9043494901769, 2.109506463693961, 0.5784426780115759, 6.882065129398879]
-    tspan = 60 * 60.0 * 24 * 180              # seconds
+    tspan = 1000 * 60.0 * 10            # seconds
     dt = 100.0                            # seconds
     steps = int(tspan / dt)
     ets = np.zeros((steps, 1))
