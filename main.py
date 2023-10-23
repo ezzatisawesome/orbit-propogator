@@ -133,9 +133,9 @@ def Eci2Ecef(t, state: np.ndarray[float]) -> np.ndarray[float]:
 def Ecef2Geoc(state, r):
     geoc = np.zeros(3)
 
-    geoc[0] = math.degrees(math.asin(state[2] / np.linalg.norm(state)))
-    geoc[1] = math.degrees(math.atan2(state[1], state[0]))
-    geoc[2] = np.linalg.norm(state) - r
+    geoc[0] = math.degrees(math.atan2(state[1], state[0])) # longitude
+    geoc[1] = math.degrees(math.asin(state[2] / np.linalg.norm(state))) # latitude
+    geoc[2] = np.linalg.norm(state) - r # altitude
 
     return geoc
 
@@ -259,7 +259,7 @@ if __name__ == '__main__':
     print(statei)
 
     tspan = 60.0 * 100  # seconds
-    dt = 100.0  # seconds
+    dt = 10.0  # seconds
     steps = int(tspan / dt)
     ets = np.zeros((steps, 1))
     states = np.zeros((steps, 6))

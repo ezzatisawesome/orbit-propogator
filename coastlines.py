@@ -27,8 +27,8 @@ def plot_groundtracks(geocentric_states: np.ndarray[float]):
     plt.plot(coast_cords[:, 0], coast_cords[:, 1], 'mo', markersize=0.3)
 
     plt.plot(
-        geocentric_states[:, 1],
         geocentric_states[:, 0],
+        geocentric_states[:, 1],
         color='red',
         marker='o',
         linestyle='none',
