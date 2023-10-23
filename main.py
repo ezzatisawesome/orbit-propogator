@@ -59,7 +59,7 @@ def RK4(
     y: float,
     h: float
 ):
-
+    print(t)
     k1 = fn(t, y)
     k2 = fn(t, y + 0.5 * k1 * h)
     k3 = fn(t, y + 0.5 * k2 * h)
@@ -88,47 +88,43 @@ def Coes2State(coes: Tuple[float, float, float, float, float, float]) -> np.ndar
 
     return np.concatenate((r_rot, v_rot))
 
+import math
+
+def Cal2Gmst(Y1, M1, D1, D):
+    # Compute modified month and year
+    if M1 <= 2:
+        Y2 = Y1 - 1
+        M2 = M1 + 12
+    else:
+        Y2 = Y1
+        M2 = M1
+
+    B = Y1 / 400 - Y1 / 100 + Y1 / 4
+
+    # Decimal days
+    D2 = D1 + D
+
+    # Modified Julian Date
+    MJD = 365 * Y2 - 679004 + int(B) + int(30.6001 * (M2 + 1)) + D2
+    d = MJD - 51544.5
+
+    # GMST in degrees
+    GMST = 280.4606 + 360.9856473 * d
+    GMST = math.radians(GMST) # Convert to radians
+    GMST = GMST % (2 * math.pi) # Ensure GMST is in the range [0, 2 * pi)
+
+    return GMST
+
+
 
 def Eci2Ecef(t, state: np.ndarray[float]) -> np.ndarray[float]:
-    # function ecef = ECI2ECEF(eci, GMST)
-    # % Convert ECI position to ECEF position
-    # %
-    # % Inputs:
-    # %           eci - 3xN ECI position vectors (km)
-    # %           GMST - 1xN list of GMST (radians)
-    # % Outputs:
-    # %           ecef - 3xN ECEF position vectors (km)
-
-    # % Number of input vectors
-    # N = size(eci, 2);
-
-    # % Check for correct input dimension
-    # if (size(eci, 1) == 3) && (length(GMST) == N)
-
-    #     % Size output
-    #     ecef = zeros(3, N);
-
-    #     for ii = 1:N
-    #         % Compute rotation from ECI to ECEF
-    #         R_eci2ecef = [cos(GMST(ii)),  sin(GMST(ii)), 0; ...
-    #                     -sin(GMST(ii)), cos(GMST(ii)), 0; ...
-    #                     0,              0,             1];
-
-    #         % Compute ECEF position
-    #         ecef(:, ii) = R_eci2ecef * eci(:, ii);
-    #     end
-
-    # else
-    #     ecef = nan(3, N);
-    #     disp('Wrong input dimension for ECI2ECEF');
-    # end
-
     omega = 0.261799387799149  # radians/hour
-    theta = (omega * t / 60 / 60) % (2 * math.pi)
+    # theta = Cal2Gmst()
+    theta = float((omega * t / 60 / 60) % (2 * math.pi))
 
     rotation_matrix = np.array([
-        [math.cos(theta), math.sin(theta), 0],
-        [-math.sin(theta), math.cos(theta), 0],
+        [math.cos(theta), -math.sin(theta), 0],
+        [math.sin(theta), math.cos(theta), 0],
         [0, 0, 1]
     ])
 
@@ -256,7 +252,7 @@ def plot_orbits(rs, args):
 if __name__ == '__main__':
     # coes = sma, ecc, inc, ta, aop, raan
     coes = [7641.80, 0.0, 98.94, 0, 0, 0]
-    # coes = [ 7641.80, 0.948, 124.05, 159.61, 303.09, 190.62 ]
+    # coes = [7500, 0.0, 25.0, 0.0, 0.0, 0.0]
 
     # Convert orbital elements to state vector
     statei = Coes2State(coes)
@@ -279,8 +275,8 @@ if __name__ == '__main__':
         states[step + 1] = RK4(
             DiffEqn, ets[step], states[step], dt)
 
-        statesECEF[step + 1] = Eci2Ecef(ets[step], states[step + 1][:3])
-        statesGeoc[step + 1] = Ecef2Geoc(statesECEF[step + 1], earth_radius)
+        statesECEF[step + 1] = Eci2Ecef(dt*step, states[step][:3])
+        statesGeoc[step + 1] = Ecef2Geoc(statesECEF[step], earth_radius)
 
     # plot the groundtrack
     plot_groundtracks(statesGeoc)
