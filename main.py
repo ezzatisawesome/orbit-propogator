@@ -1,61 +1,40 @@
-from typing import Callable
-import numpy as np
-from numpy import ndarray
-import matplotlib.pyplot as plt
 import math
+import numpy as np
+import matplotlib.pyplot as plt
+from typing import Callable, Tuple
 from scipy.spatial.transform import Rotation
 
+from coastlines import plot_groundtracks
 from constants import earth_mu, earth_radius, earth_j2
 
 
-def TwoBodyODE(state: ndarray[float]) -> ndarray[float]:
+def TwoBodyODE(state: np.ndarray[float]) -> np.ndarray[float]:
     # Get the position vector from state
     r_vector = state[:3]
 
-    # Newton's Universal Law of Gravitation
+    # Calculate the acceleration vector
     a_vector = (-earth_mu / np.linalg.norm(r_vector) ** 3) * r_vector
 
     # Return the derivative of the state
     return np.array([a_vector[0], a_vector[1], a_vector[2]])
 
-def J2Pert(state: ndarray[float]) -> ndarray[float]:
-    rNorm = np.linalg.norm(state[:3])
-    rSquared = rNorm ** 2
-    zSquared = state[2] ** 2
+
+def J2Pert(state: np.ndarray[float]) -> np.ndarray[float]:
+    r_norm = np.linalg.norm(state[:3])
+    r_squared = r_norm ** 2
+    z_squared = state[2] ** 2
 
     p = (3 * earth_j2 * earth_mu * (earth_radius ** 2)) / \
-        (2 * (rSquared ** 2))
+        (2 * (r_squared ** 2))
 
-    ax = ((5 * zSquared / rSquared) - 1) * (state[0] / rNorm)
-    ay = ((5 * zSquared / rSquared) - 1) * (state[1] / rNorm)
-    az = ((5 * zSquared / rSquared) - 3) * (state[2] / rNorm)
+    ax = ((5 * z_squared / r_squared) - 1) * (state[0] / r_norm)
+    ay = ((5 * z_squared / r_squared) - 1) * (state[1] / r_norm)
+    az = ((5 * z_squared / r_squared) - 3) * (state[2] / r_norm)
 
     return np.array([ax, ay, az]) * p
 
-def Coes2State(coes) -> ndarray[float]:
-    sma, ecc, inc, ta, aop, raan = coes
 
-    # calculate velocity of satellite
-    h = 7641.8 * 7.22222 # km^2/s
-
-    cos_ta = np.cos(math.radians(ta))
-    sin_ta = np.sin(math.radians(ta))
-
-    r_w = h ** 2 / earth_mu / (1 + ecc * np.cos(ta)) * np.array((np.cos(ta), np.sin(ta), 0))
-    v_w = earth_mu / h * np.array((-np.sin(ta), ecc + np.cos(ta), 0))
-
-
-    # r_w = h ** 2 / earth_mu / (1 + ecc * cos_ta) * np.array((cos_ta, sin_ta, 0))
-    # v_w = earth_mu / h * np.array((-sin_ta, ecc + cos_ta, 0))
-
-    # rotate to perifocal frame
-    R = Rotation.from_euler("ZXZ", [-aop, -inc, -raan], degrees=True)
-    r_rot = r_w @ R.as_matrix()
-    v_rot = v_w @ R.as_matrix()
-
-    return np.concatenate((r_rot, v_rot))
-
-def DiffEqn(t, state):
+def DiffEqn(t, state: np.ndarray[float]) -> np.ndarray[float]:
     rx, ry, rz, vx, vy, vz = state
     # Get the position vector from state
     r_vector = np.array([rx, ry, rz])
@@ -70,11 +49,12 @@ def DiffEqn(t, state):
     # Return the derivative of the state
     state_dot[:3] = [vx, vy, vz]
     state_dot[3:6] = a
-    
+
     return state_dot
 
+
 def RK4(
-    fn: Callable[[ndarray[float]], ndarray[float]],
+    fn: Callable[[np.ndarray[float]], np.ndarray[float]],
     t: float,
     y: float,
     h: float
@@ -86,6 +66,83 @@ def RK4(
     k4 = fn(t, y + k3 * h)
 
     return y + h / 6.0 * (k1 + 2 * k2 + 2 * k3 + k4)
+
+
+def Coes2State(coes: Tuple[float, float, float, float, float, float]) -> np.ndarray[float]:
+    sma, ecc, inc, ta, aop, raan = coes
+
+    # calculate velocity of satellite
+    h = 7641.8 * 7.22222  # km^2/s
+
+    cos_ta = math.cos(math.radians(ta))
+    sin_ta = math.sin(math.radians(ta))
+
+    r_w = h ** 2 / earth_mu / (1 + ecc * cos_ta) * \
+        np.array((cos_ta, sin_ta, 0))
+    v_w = earth_mu / h * np.array((-sin_ta, ecc + cos_ta, 0))
+
+    # rotate to inertian frame
+    R = Rotation.from_euler("ZXZ", [-aop, -inc, -raan], degrees=True)
+    r_rot = r_w @ R.as_matrix()
+    v_rot = v_w @ R.as_matrix()
+
+    return np.concatenate((r_rot, v_rot))
+
+
+def Eci2Ecef(t, state: np.ndarray[float]) -> np.ndarray[float]:
+    # function ecef = ECI2ECEF(eci, GMST)
+    # % Convert ECI position to ECEF position
+    # %
+    # % Inputs:
+    # %           eci - 3xN ECI position vectors (km)
+    # %           GMST - 1xN list of GMST (radians)
+    # % Outputs:
+    # %           ecef - 3xN ECEF position vectors (km)
+
+    # % Number of input vectors
+    # N = size(eci, 2);
+
+    # % Check for correct input dimension
+    # if (size(eci, 1) == 3) && (length(GMST) == N)
+
+    #     % Size output
+    #     ecef = zeros(3, N);
+
+    #     for ii = 1:N
+    #         % Compute rotation from ECI to ECEF
+    #         R_eci2ecef = [cos(GMST(ii)),  sin(GMST(ii)), 0; ...
+    #                     -sin(GMST(ii)), cos(GMST(ii)), 0; ...
+    #                     0,              0,             1];
+
+    #         % Compute ECEF position
+    #         ecef(:, ii) = R_eci2ecef * eci(:, ii);
+    #     end
+
+    # else
+    #     ecef = nan(3, N);
+    #     disp('Wrong input dimension for ECI2ECEF');
+    # end
+
+    omega = 0.261799387799149  # radians/hour
+    theta = (omega * t / 60 / 60) % (2 * math.pi)
+
+    rotation_matrix = np.array([
+        [math.cos(theta), math.sin(theta), 0],
+        [-math.sin(theta), math.cos(theta), 0],
+        [0, 0, 1]
+    ])
+
+    return state @ rotation_matrix
+
+def Ecef2Geoc(state, r):
+    geoc = np.zeros(3)
+
+    geoc[0] = math.degrees(math.asin(state[2] / np.linalg.norm(state)))
+    geoc[1] = math.degrees(math.atan2(state[1], state[0]))
+    geoc[2] = np.linalg.norm(state) - r
+
+    return geoc
+
 
 def plot_orbits(rs, args):
     _args = {
@@ -198,22 +255,35 @@ def plot_orbits(rs, args):
 
 if __name__ == '__main__':
     # coes = sma, ecc, inc, ta, aop, raan
-    coes = [ 7641.80, 0.0, 98.94, 0, 0, 45 ]
+    coes = [7641.80, 0.0, 98.94, 0, 0, 0]
     # coes = [ 7641.80, 0.948, 124.05, 159.61, 303.09, 190.62 ]
 
     # Convert orbital elements to state vector
     statei = Coes2State(coes)
     print(statei)
 
-    tspan = 1000 * 60.0 * 10            # seconds
-    dt = 100.0                            # seconds
+    tspan = 60.0 * 100  # seconds
+    dt = 100.0  # seconds
     steps = int(tspan / dt)
     ets = np.zeros((steps, 1))
     states = np.zeros((steps, 6))
     states[0] = statei
 
+    statesECEF = np.zeros((steps, 3))
+    statesECEF[0] = Eci2Ecef(ets[0], states[0][:3])
+
+    statesGeoc = np.zeros((steps, 3))
+    statesGeoc[0] = Ecef2Geoc(statesECEF[0], earth_radius)
+
     for step in range(steps - 1):
         states[step + 1] = RK4(
             DiffEqn, ets[step], states[step], dt)
 
-    plot_orbits([states], {'show': True})
+        statesECEF[step + 1] = Eci2Ecef(ets[step], states[step + 1][:3])
+        statesGeoc[step + 1] = Ecef2Geoc(statesECEF[step + 1], earth_radius)
+
+    # plot the groundtrack
+    plot_groundtracks(statesGeoc)
+    plt.show()
+
+    # plot_orbits([states], {'show': True})
