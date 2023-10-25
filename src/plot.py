@@ -38,7 +38,7 @@ def plot_groundtracks(geocentric_states: np.ndarray[float]):
     #     plt.imread(EARTH_SURFACE_IMAGE),
     #     extent=[-180, 180, -90, 90])
 
-# Function obtained from Alfonso Gonazelez YouTube channel
+# Function adpated from Alfonso Gonazelez YouTube channel
 def plot_eci(rs, args):
     _args = {
         'figsize': (10, 8),

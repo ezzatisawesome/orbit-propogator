@@ -64,7 +64,7 @@ class Propagate:
 
         return state_dot
 
-    # Function obtained from Alfonso Gonazelez YouTube channel
+    # Function adpated from Alfonso Gonazelez YouTube channel
     # Runge Kutta solver for the differential equation
     @staticmethod
     def RK4(
