@@ -2,6 +2,7 @@ import numpy as np
 from typing import Callable, TypedDict, Tuple
 
 from .satellite import Satellite
+from .utils import get_gmst_from_epoch
 from .constants import earth_mu, earth_radius, earth_j2
 
 class Propagate:
@@ -84,20 +85,17 @@ class Propagate:
             t0: int,
             options: TypedDict = {'j2': False}
     ) -> Tuple[np.ndarray[float], np.ndarray[float]]:
-        # t = get_gmst_from_epoch(t0)
-
         states = np.zeros((self.steps, 6))
         states[0] = self.satellite.state
 
         statesGeoc = np.zeros((self.steps, 3))
-        statesGeoc[0] = self.satellite.get_state_geoc(self.dt)
+        statesGeoc[0] = self.satellite.get_state_geoc(t0)
 
         DiffEqn = lambda state: self.DiffEqn(state, options['j2'])
 
         for i in range(self.steps - 1):
-            # time = get_gmst_from_epoch(t0 + (i + 1) * self.dt)
             states[i + 1] = self.RK4(DiffEqn, states[i], self.dt)
-            statesGeoc[i + 1] = self.satellite.get_state_geoc(i * self.dt)
+            statesGeoc[i + 1] = self.satellite.get_state_geoc(t0 + (i + 1) * self.dt)
             self.satellite.state = states[i + 1]
 
         return states, statesGeoc
