@@ -1,6 +1,11 @@
 import math
+import numpy as np
+from datetime import datetime
 
-def Cal2Gmst(Y1, M1, D1, D):
+from .constants import earth_radius
+
+# Modified from Matlab code in Canvas
+def cal_2_gmst(Y1, M1, D1, D):
     # Compute modified month and year
     if M1 <= 2:
         Y2 = Y1 - 1
@@ -24,3 +29,57 @@ def Cal2Gmst(Y1, M1, D1, D):
     GMST = GMST % (2 * math.pi) # Ensure GMST is in the range [0, 2 * pi)
 
     return GMST
+
+
+def get_gmst_from_epoch(t: int) -> float:
+    # Get the date and time from the epoch
+    epoch = datetime.fromtimestamp(t)
+
+    # Get the year, month, day, hour, minute, and second from the epoch
+    year = epoch.year
+    month = epoch.month
+    day = epoch.day
+    hour = epoch.hour
+    minute = epoch.minute
+    second = epoch.second
+
+    # Get the GMST from the epoch
+    gmst = cal_2_gmst(year, month, day, (hour * 3600 + minute * 60 + second)/86400)
+    return gmst
+
+
+def in_eclipse2(stateSatellite: np.ndarray, stateSun: np.ndarray) -> bool:    
+    for i in range(len(stateSatellite)):
+        stateSatellitePos = stateSatellite[i,:3]
+        stateSunPos = stateSun[i,:3]
+
+        # R_sun * r_sat = R_sun * r_sat * cos(psi)
+
+        projection = np.dot(stateSunPos, stateSatellitePos.reshape(-1, 1))
+        psi = math.acos(projection / np.linalg.norm(stateSunPos) / np.linalg.norm(stateSatellitePos))
+
+        a = stateSatellitePos * math.sin(psi)
+
+        inState = psi > math.radians(90) and psi < math.radians(270) and np.linalg.norm(a) < earth_radius
+        print(inState, psi, np.linalg.norm(a))
+
+def in_eclipse(stateSatellite: np.ndarray, stateSun: np.ndarray) -> bool:
+    stateEclipse = np.zeros(len(stateSatellite))
+
+    for i in range(len(stateSatellite)):
+        # Get the satellite and sun position vectors
+        satelliteVector = stateSatellite[i,:3]
+        sunVector = stateSun[i,:3]
+
+        # Get the projection of the satellite position vector onto the sun position vector
+        sunDotSat = np.dot(sunVector, satelliteVector)
+
+        # Get perpendicular and parallel components of the satellite position vector relative to the sun position vector
+        sunUnitVector = sunVector / np.linalg.norm(sunVector)
+        satelliteParallelSun = sunUnitVector * np.dot(sunUnitVector, satelliteVector)
+        satellitePerpendicularSun = satelliteVector - satelliteParallelSun
+
+        # print( (sunDotSat > 0) and (np.linalg.norm(satellitePerpendicularSun) < earth_radius))
+        stateEclipse[i] = (sunDotSat > 0) and (np.linalg.norm(satellitePerpendicularSun) < earth_radius)
+
+    return stateEclipse

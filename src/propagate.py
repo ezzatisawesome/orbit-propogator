@@ -1,9 +1,7 @@
 import numpy as np
-from typing import Callable
-import matplotlib.pyplot as plt
+from typing import Callable, TypedDict, Tuple
 
 from .satellite import Satellite
-from .plot import plot_groundtracks
 from .constants import earth_mu, earth_radius, earth_j2
 
 class Propagate:
@@ -46,7 +44,7 @@ class Propagate:
     # state = [rx, ry, rz, vx, vy, vz]
     # Differential equation for the state vector
     @staticmethod
-    def DiffEqn(state: np.ndarray[float]) -> np.ndarray[float]:
+    def DiffEqn(state: np.ndarray[float], j2: bool) -> np.ndarray[float]:
         rx, ry, rz, vx, vy, vz = state
 
         # state_dot = TwoBodyODE(state)
@@ -54,7 +52,10 @@ class Propagate:
 
         # Newton's Universal Law of Gravitation
         a = Propagate.TwoBodyODE(state)
-        a += Propagate.J2Pert(state)
+
+        # J2 Perturbation
+        if (j2):
+            a += Propagate.J2Pert(state)
 
         # Return the derivative of the state
         state_dot[:3] = [vx, vy, vz]
@@ -62,6 +63,7 @@ class Propagate:
 
         return state_dot
 
+    # Function obtained from Alfonso Gonazelez YouTube channel
     # Runge Kutta solver for the differential equation
     @staticmethod
     def RK4(
@@ -77,17 +79,25 @@ class Propagate:
         return y + h / 6.0 * (k1 + 2 * k2 + 2 * k3 + k4)
     
     # Propagate the state vector based provided inputs
-    def propagate(self):
+    def propagate(
+            self, 
+            t0: int,
+            options: TypedDict = {'j2': False}
+    ) -> Tuple[np.ndarray[float], np.ndarray[float]]:
+        # t = get_gmst_from_epoch(t0)
+
         states = np.zeros((self.steps, 6))
         states[0] = self.satellite.state
 
         statesGeoc = np.zeros((self.steps, 3))
         statesGeoc[0] = self.satellite.get_state_geoc(self.dt)
 
-        for step in range(self.steps - 1):
-            states[step + 1] = Propagate.RK4(self.DiffEqn, states[step], self.dt)
-            statesGeoc[step + 1] = self.satellite.get_state_geoc(step * self.dt)
-            self.satellite.state = states[step + 1]
+        DiffEqn = lambda state: self.DiffEqn(state, options['j2'])
 
-        plot_groundtracks(statesGeoc)
-        plt.show()
+        for i in range(self.steps - 1):
+            # time = get_gmst_from_epoch(t0 + (i + 1) * self.dt)
+            states[i + 1] = self.RK4(DiffEqn, states[i], self.dt)
+            statesGeoc[i + 1] = self.satellite.get_state_geoc(i * self.dt)
+            self.satellite.state = states[i + 1]
+
+        return states, statesGeoc
