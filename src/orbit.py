@@ -67,4 +67,4 @@ class Orbit:
         ta = np.arccos(np.dot(r_vec / r, e_vec / ecc))
 
 
-        return (sma, ecc, inc, ta, aop, raan)
+        return np.array((sma, ecc, inc, ta, aop, raan))
