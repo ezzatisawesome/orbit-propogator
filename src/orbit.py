@@ -14,11 +14,14 @@ class Orbit:
     def Coes2State(coes: Tuple[float, float, float, float, float, float]) -> np.ndarray[float]:
         sma, ecc, inc, ta, aop, raan = coes
 
-        # calculate velocity of satellite
-        h = 7641.8 * 7.22222  # km^2/s
+        # calculate orbital angular momentum of satellite
+        h = math.sqrt(earth_mu * (sma * (1 - ecc**2)))
+        # h = 1.6041e13
 
         cos_ta = math.cos(math.radians(ta))
         sin_ta = math.sin(math.radians(ta))
+
+        print(h**2)
 
         r_w = h ** 2 / earth_mu / (1 + ecc * cos_ta) * \
             np.array((cos_ta, sin_ta, 0))
@@ -28,6 +31,8 @@ class Orbit:
         R = Rotation.from_euler("ZXZ", [-aop, -inc, -raan], degrees=True)
         r_rot = r_w @ R.as_matrix()
         v_rot = v_w @ R.as_matrix()
+
+        print(v_rot)
 
         return np.concatenate((r_rot, v_rot))
     

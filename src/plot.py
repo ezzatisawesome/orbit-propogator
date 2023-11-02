@@ -12,6 +12,9 @@ EARTH_SURFACE_IMAGE = os.path.join(
     os.path.join('..', 'data', 'earth_surface.png')
 )
 
+# CONSTANTS
+COLORS = ['c', 'm', 'r', 'C3']
+
 def plot_groundtracks(geocentric_states: np.ndarray[float]):
     plt.figure(figsize=(16, 8))
     plt.xlabel('Longitude (deg)')
@@ -23,27 +26,30 @@ def plot_groundtracks(geocentric_states: np.ndarray[float]):
     coast_cords = np.genfromtxt(COASTLINES_COORDINATES_FILE, delimiter=',')
     plt.plot(coast_cords[:, 0], coast_cords[:, 1], 'mo', markersize=0.3)
 
-    # Plot the groundtrack
-    plt.plot(
-        geocentric_states[:, 0],
-        geocentric_states[:, 1],
-        color='c',
-        marker='.',
-        markersize=0.5,
-        linestyle='None',
-    )
+    # Plot the groundtracks
+    i = 0
+    for geoc in geocentric_states:
+        plt.plot(
+            geoc[:, 0],
+            geoc[:, 1],
+            color=COLORS[i],
+            marker='.',
+            markersize=0.5,
+            linestyle='None',
+        )
+        i += 1
 
     # Plot the Earth surface image
-    # plt.imshow(
-    #     plt.imread(EARTH_SURFACE_IMAGE),
-    #     extent=[-180, 180, -90, 90])
+    plt.imshow(
+        plt.imread(EARTH_SURFACE_IMAGE),
+        extent=[-180, 180, -90, 90])
 
 # Function adpated from Alfonso Gonazelez YouTube channel
 def plot_eci(rs, args):
     _args = {
         'figsize': (10, 8),
         'labels': [''] * len(rs),
-        'colors': ['m', 'c', 'r', 'C3'],
+        'colors': COLORS,
         'traj_lws': 3,
         'dist_unit': 'km',
         'cb_radius': 6378.0,

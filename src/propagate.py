@@ -12,10 +12,14 @@ class Propagate:
         self.dt = dt
         self.steps = int(tspan / dt)
 
+    @staticmethod
+    def TwoBodyODE(state: np.ndarray[float]) -> np.ndarray[float]:
+        pass
+
     # state = [rx, ry, rz, vx, vy, vz]
     # Acceleration due to Gravity
     @staticmethod
-    def TwoBodyODE(state: np.ndarray[float]) -> np.ndarray[float]:
+    def EarthTwoBodyODE(state: np.ndarray[float]) -> np.ndarray[float]:
         # Get the position vector from state
         r_vector = state[:3]
 
@@ -48,11 +52,10 @@ class Propagate:
     def DiffEqn(state: np.ndarray[float], j2: bool) -> np.ndarray[float]:
         rx, ry, rz, vx, vy, vz = state
 
-        # state_dot = TwoBodyODE(state)
         state_dot = np.zeros(6)
 
         # Newton's Universal Law of Gravitation
-        a = Propagate.TwoBodyODE(state)
+        a = Propagate.EarthTwoBodyODE(state)
 
         # J2 Perturbation
         if (j2):
