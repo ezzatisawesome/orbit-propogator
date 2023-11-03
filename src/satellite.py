@@ -3,14 +3,16 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 
 from .orbit import Orbit
-from .constants import earth_radius
+from .constants import earth_radius, earth_mu, sun_mu
 from .utils import get_gmst_from_epoch
 
 class Satellite:
-    def __init__(self, mass: float, orbit: Orbit):
+    def __init__(self, mass: float, orbit: Orbit, options: dict = {}):
         self.mass = mass
         self.orbit = orbit
-        self.state = Orbit.Coes2State(orbit.coes) # state = [rx, ry, rz, ax, ay, az, t]
+        self.options = options
+        self.mu = sun_mu if ('sun' in options and options['sun']) else earth_mu
+        self.state = Orbit.Coes2State(orbit.coes, self.mu) # state = [rx, ry, rz, ax, ay, az, t]
 
     # Transform Earth-Centered Inertial to Earth-Centered Earth-Fixed
     @staticmethod

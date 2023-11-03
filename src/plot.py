@@ -64,9 +64,6 @@ def plot_eci(rs, args):
         'hide_axes': False,
         'azimuth': False,
         'elevation': False,
-        'show': False,
-        'filename': False,
-        'dpi': 300
     }
     for key in args.keys():
         _args[key] = args[key]
@@ -126,12 +123,3 @@ def plot_eci(rs, args):
 
     if _args['legend']:
         plt.legend()
-
-    if _args['filename']:
-        plt.savefig(_args['filename'], dpi=_args['dpi'])
-        print('Saved', _args['filename'])
-
-    if _args['show']:
-        plt.show()
-
-    plt.close()

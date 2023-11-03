@@ -3,41 +3,35 @@ import numpy as np
 from typing import Tuple
 from scipy.spatial.transform import Rotation
 
-from .constants import earth_mu
-
 class Orbit:
     def __init__(self, coes: Tuple[float, float, float, float, float, float]):
         self.coes = coes
     
     # Convert Classical Orbital Elements to State Vector
     @staticmethod
-    def Coes2State(coes: Tuple[float, float, float, float, float, float]) -> np.ndarray[float]:
+    def Coes2State(coes: Tuple[float, float, float, float, float, float], mu: float) -> np.ndarray[float]:
         sma, ecc, inc, ta, aop, raan = coes
 
         # calculate orbital angular momentum of satellite
-        h = math.sqrt(earth_mu * (sma * (1 - ecc**2)))
+        h = math.sqrt(mu * (sma * (1 - ecc**2)))
         # h = 1.6041e13
 
         cos_ta = math.cos(math.radians(ta))
         sin_ta = math.sin(math.radians(ta))
 
-        print(h**2)
-
-        r_w = h ** 2 / earth_mu / (1 + ecc * cos_ta) * \
+        r_w = h ** 2 / mu / (1 + ecc * cos_ta) * \
             np.array((cos_ta, sin_ta, 0))
-        v_w = earth_mu / h * np.array((-sin_ta, ecc + cos_ta, 0))
+        v_w = mu / h * np.array((-sin_ta, ecc + cos_ta, 0))
 
         # rotate to inertian frame
         R = Rotation.from_euler("ZXZ", [-aop, -inc, -raan], degrees=True)
         r_rot = r_w @ R.as_matrix()
         v_rot = v_w @ R.as_matrix()
 
-        print(v_rot)
-
         return np.concatenate((r_rot, v_rot))
     
     @staticmethod
-    def State2Coes(state: np.ndarray[float]) -> Tuple[float, float, float, float, float, float]:
+    def State2Coes(state: np.ndarray[float], mu) -> Tuple[float, float, float, float, float, float]:
         r_vec = state[:3]
         v_vec = state[3:]
 
@@ -62,7 +56,7 @@ class Orbit:
         raan = 2 * np.pi - np.arccos(N_vec[0] / N)
 
         # Eccentricity
-        e_vec = np.cross(v_vec, h_vec) / earth_mu - r_vec / r
+        e_vec = np.cross(v_vec, h_vec) / mu - r_vec / r
         ecc = np.linalg.norm(e_vec)
 
         # AOP

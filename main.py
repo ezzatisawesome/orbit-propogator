@@ -11,7 +11,7 @@ from src.utils import in_eclipse
 from src.constants import earth_radius
 
 # Simulation parameters
-sim_duration = 60.0 * 60 * 24 * 180# seconds
+sim_duration = 60.0 * 60 * 24 * 365# seconds
 dt = 10
 
 # Epoch (Vernal Equinox 2024)
@@ -28,35 +28,26 @@ coesSat = [7641.80, 0.00000001, 100.73, 0, 0, 90]  # sma, ecc, inc, ta, aop, raa
 orbit = Orbit(coesSat)
 satellite = Satellite(1400, orbit)  # ! Need to fix satellite mass
 propagateSat = Propagate(satellite, sim_duration, dt)
-# statesSat, statesGeocSat = propagateSat.propagate(t0, options={'j2': True})
+statesSat, statesGeocSat = propagateSat.propagate(t0, options={'j2': True})
 
 # Sun orbit
 coesSun = [149.598e6, 0.0000001, 23.4406, 0, 0, 0]
 orbitSun = Orbit(coesSun)
-sun = Satellite(1.989e30, orbitSun)
+sun = Satellite(1.989e30, orbitSun, options={'sun': True})
 propagateSun = Propagate(sun, sim_duration, dt)
-statesSun, statesGeocSun = propagateSun.propagate(t0, options={'j2': True})
+statesSun, statesGeocSun = propagateSun.propagate(t0, options={'j2': False})
 
 # Check for eclipses
-# print(statesSun)
-# print(statesSat)
-# stateEclipse, sunDot, perpNorm = in_eclipse(statesSat, statesSun)
-# file_name = 'eclipse.txt'
-# file = open(file_name, 'w')
-# for (i, state) in enumerate(stateEclipse):
-#     if (state):
-#         # print(f'In eclipse at {datetime.fromtimestamp(t0 + i * dt)}')
-#         file.write(f'In eclipse at {datetime.fromtimestamp(t0 + i * dt)}; {sunDot[i]}; {perpNorm[i]}\n')
-# file.close()
-
-file_name = 'sun.txt'
+stateEclipse, sunDot, perpNorm = in_eclipse(statesSat, statesSun)
+file_name = 'eclipse.txt'
 file = open(file_name, 'w')
-for (i, state) in enumerate(statesSun):
-    # print(f'In eclipse at {datetime.fromtimestamp(t0 + i * dt)}')
-    file.write(f'{state[0]}; {state[1]}; {state[2]}\n')
+for (i, state) in enumerate(stateEclipse):
+    if (state):
+        # print(f'In eclipse at {datetime.fromtimestamp(t0 + i * dt)}')
+        file.write(f'In eclipse at {datetime.fromtimestamp(t0 + i * dt)}; {sunDot[i]}; {perpNorm[i]}\n')
 file.close()
 
 # Plot
-# plot_groundtracks([statesGeocSat, statesGeocSun])
-plot_eci([statesSun], {'show': True, 'cb_axes_color': 'k'})
+plot_groundtracks([statesGeocSat, statesGeocSun])
+plot_eci([statesSat, statesSun], {'show': True, 'cb_axes_color': 'k'})
 plt.show()

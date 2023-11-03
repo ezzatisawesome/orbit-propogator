@@ -12,19 +12,15 @@ class Propagate:
         self.dt = dt
         self.steps = int(tspan / dt)
 
-    @staticmethod
-    def TwoBodyODE(state: np.ndarray[float]) -> np.ndarray[float]:
-        pass
-
     # state = [rx, ry, rz, vx, vy, vz]
     # Acceleration due to Gravity
     @staticmethod
-    def EarthTwoBodyODE(state: np.ndarray[float]) -> np.ndarray[float]:
+    def TwoBodyODE(state: np.ndarray[float], mu: float) -> np.ndarray[float]:
         # Get the position vector from state
         r_vector = state[:3]
 
         # Calculate the acceleration vector
-        a_vector = (-earth_mu / np.linalg.norm(r_vector) ** 3) * r_vector
+        a_vector = (-mu / np.linalg.norm(r_vector) ** 3) * r_vector
 
         # Return the derivative of the state
         return np.array([a_vector[0], a_vector[1], a_vector[2]])
@@ -49,13 +45,13 @@ class Propagate:
     # state = [rx, ry, rz, vx, vy, vz]
     # Differential equation for the state vector
     @staticmethod
-    def DiffEqn(state: np.ndarray[float], j2: bool) -> np.ndarray[float]:
+    def DiffEqn(state: np.ndarray[float], j2: bool, mu: float) -> np.ndarray[float]:
         rx, ry, rz, vx, vy, vz = state
 
         state_dot = np.zeros(6)
 
-        # Newton's Universal Law of Gravitation
-        a = Propagate.EarthTwoBodyODE(state)
+        # Newton's Universal Law of Gravitation)
+        a = Propagate.TwoBodyODE(state, mu)
 
         # J2 Perturbation
         if (j2):
@@ -94,7 +90,7 @@ class Propagate:
         statesGeoc = np.zeros((self.steps, 3))
         statesGeoc[0] = self.satellite.get_state_geoc(t0)
 
-        DiffEqn = lambda state: self.DiffEqn(state, options['j2'])
+        DiffEqn = lambda state: self.DiffEqn(state, options['j2'], self.satellite.mu)
 
         for i in range(self.steps - 1):
             states[i + 1] = self.RK4(DiffEqn, states[i], self.dt)
