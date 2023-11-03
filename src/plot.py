@@ -50,6 +50,7 @@ def plot_eci(rs, args):
         'figsize': (10, 8),
         'labels': [''] * len(rs),
         'colors': COLORS,
+        'opacity': 1,
         'traj_lws': 3,
         'dist_unit': 'km',
         'cb_radius': 6378.0,
@@ -77,9 +78,9 @@ def plot_eci(rs, args):
     for r in rs:
         ax.plot(r[:, 0], r[:, 1], r[:, 2],
                 color=_args['colors'][n], label=_args['labels'][n],
-                zorder=10, linewidth=_args['traj_lws'])
+                zorder=10, linewidth=_args['traj_lws'], alpha=_args['opacity'],)
         ax.plot([r[0, 0]], [r[0, 1]], [r[0, 2]], 'o',
-                color=_args['colors'][n])
+                color=_args['colors'][n], alpha=_args['opacity'],)
 
         max_val = max([r.max(), max_val])
         n += 1
