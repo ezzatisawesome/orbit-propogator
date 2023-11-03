@@ -65,6 +65,8 @@ def plot_eci(rs, args):
         'hide_axes': False,
         'azimuth': False,
         'elevation': False,
+        'draw_sun': False,
+        'draw_moon': False,
     }
     for key in args.keys():
         _args[key] = args[key]
@@ -72,24 +74,47 @@ def plot_eci(rs, args):
     fig = plt.figure(figsize=_args['figsize'])
     ax = fig.add_subplot(111, projection='3d')
 
+    # Drawing trajectories
     max_val = 0
     n = 0
-
     for r in rs:
         ax.plot(r[:, 0], r[:, 1], r[:, 2],
                 color=_args['colors'][n], label=_args['labels'][n],
                 zorder=10, linewidth=_args['traj_lws'], alpha=_args['opacity'],)
-        ax.plot([r[0, 0]], [r[0, 1]], [r[0, 2]], 'o',
-                color=_args['colors'][n], alpha=_args['opacity'],)
+        ax.plot([r[-1][0]], [r[-1][1]], [r[-1][2]], 'o',
+                color=_args['colors'][n], alpha=_args['opacity'], zorder=10)
 
         max_val = max([r.max(), max_val])
         n += 1
 
+    # Draw Earth
     _u, _v = np.mgrid[0:2*np.pi:20j, 0:np.pi:20j]
     _x = _args['cb_radius'] * np.cos(_u) * np.sin(_v)
     _y = _args['cb_radius'] * np.sin(_u) * np.sin(_v)
     _z = _args['cb_radius'] * np.cos(_v)
     ax.plot_surface(_x, _y, _z, cmap=_args['cb_cmap'], zorder=1)
+
+    # Draw Sun
+    if _args['draw_sun']:
+        sun_x = rs[1][-1][0]
+        sun_y = rs[1][-1][1]
+        sun_z = rs[1][-1][2]
+        _u, _v = np.mgrid[0:2*np.pi:20j, 0:np.pi:20j]
+        _x = sun_x + 696000 * np.cos(_u) * np.sin(_v)
+        _y = sun_y + 696000 * np.sin(_u) * np.sin(_v)
+        _z = sun_z + 696000 * np.cos(_v)
+        ax.plot_surface(_x, _y, _z, cmap='YlOrBr', zorder=1)
+
+    # Draw Moon
+    if _args['draw_moon']:
+        moon_x = rs[2][-1][0]
+        moon_y = rs[2][-1][1]
+        moon_z = rs[2][-1][2]
+        _u, _v = np.mgrid[0:2*np.pi:20j, 0:np.pi:20j]
+        _x = moon_x + 1737.4 * np.cos(_u) * np.sin(_v)
+        _y = moon_y + 1737.4 * np.sin(_u) * np.sin(_v)
+        _z = moon_z + 1737.4 * np.cos(_v)
+        ax.plot_surface(_x, _y, _z, cmap='gray', zorder=1)
 
     if _args['cb_axes']:
         l = _args['cb_radius'] * _args['cb_axes_mag']
@@ -97,10 +122,12 @@ def plot_eci(rs, args):
         u, v, w = [[l, 0, 0], [0, -l, 0], [0, 0, l]]
         ax.quiver(x, y, z, u, v, w, color=_args['cb_axes_color'])
 
+    # Labeling axes
     xlabel = 'X (%s)' % _args['dist_unit']
     ylabel = 'Y (%s)' % _args['dist_unit']
     zlabel = 'Z (%s)' % _args['dist_unit']
 
+    # Setting axes properties
     if _args['axes_custom'] is not None:
         max_val = _args['axes_custom']
     else:
