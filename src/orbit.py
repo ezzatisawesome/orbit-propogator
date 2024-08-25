@@ -4,11 +4,11 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 from typing import Tuple
 
-from body.Body import Body
-from dataclasses.ClassicalOrbitalElements import ClassicalOrbitalElements
-from differential_equations.two_body import ODE as TwoBodyODE
-from solvers.rk4 import RK4
-from utils import get_gmst_from_epoch
+from .bodies import Body
+from .dataclasses import ClassicalOrbitalElements
+from .differential_equations.two_body import ODE as TwoBodyODE
+from .solvers.rk4 import RK4
+from .utils import get_gmst_from_epoch
 
 
 class Orbit:
@@ -27,6 +27,7 @@ class Orbit:
         self.time = epoch
         self.state = state
 
+    @classmethod
     def from_coes(
         cls,
         coes: ClassicalOrbitalElements,
@@ -41,9 +42,11 @@ class Orbit:
         :param epoch: Initializing time of orbit.
         :return: An instance of the Orbit class.
         """
+        print(body.gravitational_parameter)
         state = cls.Coes2State(coes, body.gravitational_parameter)
         return cls(state, body, epoch)
 
+    @classmethod
     def from_state(cls, state: np.ndarray, body: Body, epoch: datetime = DEFAULT_EPOCH):
         """
         Initialize the Orbit object using a state vector and a celestial body.

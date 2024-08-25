@@ -1,5 +1,5 @@
 import numpy as np
-from constants import earth_mu, earth_radius, earth_j2
+from ..constants import earth_mu, earth_radius, earth_j2
 
 
 # state = [rx, ry, rz, vx, vy, vz]
