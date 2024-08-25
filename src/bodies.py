@@ -46,3 +46,13 @@ class Body:
     def __str__(self):
         return f"{self.name}: Mass = {self.mass:.3e} kg, Radius = {self.radius:.3f} km"
 
+
+
+
+Earth = Body(
+    name="Earth",
+    mass=5.97219e24,
+    radius=6378.137,
+    gravitational_parameter=398600.4418,
+    rotation_rate=7.2921159e-5
+)
