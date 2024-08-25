@@ -1,10 +1,14 @@
+from datetime import datetime
 import math
 import numpy as np
-from typing import Tuple
 from scipy.spatial.transform import Rotation
-from datetime import datetime
+from typing import Tuple
+
 from body.Body import Body
 from dataclasses.ClassicalOrbitalElements import ClassicalOrbitalElements
+from differential_equations.two_body import ODE as TwoBodyODE
+from solvers.rk4 import RK4
+from utils import get_gmst_from_epoch
 
 
 class Orbit:
@@ -17,10 +21,10 @@ class Orbit:
 
         :param state: State vector (position and velocity) as a NumPy array.
         :param body: An instance of the Body class representing the celestial body.
-        :param epoch: The time at which the orbit elements are valid.
+        :param epoch: Initializing time of orbit.
         """
         self.mu = body.gravitational_parameter
-        self.epoch = epoch
+        self.time = epoch
         self.state = state
 
     def from_coes(
@@ -34,7 +38,7 @@ class Orbit:
 
         :param coes: Tuple of classical orbital elements (sma, ecc, inc, raan, aop, ta).
         :param body: An instance of the Body class representing the celestial body.
-        :param epoch: The time at which the orbit elements are valid.
+        :param epoch: Initializing time of orbit.
         :return: An instance of the Orbit class.
         """
         state = cls.Coes2State(coes, body.gravitational_parameter)
@@ -46,7 +50,7 @@ class Orbit:
 
         :param state: State vector (position and velocity) as a NumPy array.
         :param body: An instance of the Body class representing the celestial body.
-        :param epoch: The time at which the orbit elements are valid.
+        :param epoch: Initializing time of orbit.
         :return: An instance of the Orbit class.
         """
         coes = cls.State2Coes(state, body.gravitational_parameter)
@@ -110,11 +114,52 @@ class Orbit:
         # True anomaly
         ta = np.arccos(np.dot(r_vec / r, e_vec / ecc))
 
-        return ClassicalOrbitalElements(
-            sma,
-            ecc,
-            inc,
-            ta,
-            aop,
-            raan
+        return ClassicalOrbitalElements(sma, ecc, inc, ta, aop, raan)
+
+        # Transform Earth-Centered Inertial to Earth-Centered Earth-Fixed
+
+    @staticmethod
+    def Eci2Ecef(state: np.ndarray[float], t: float) -> np.ndarray[float]:
+        # omega = 0.261799387799149  # radians/hour
+        # theta = Cal2Gmst()
+        # theta = float((omega * t / 60 / 60) % (2 * math.pi))
+        theta = get_gmst_from_epoch(t)
+        R = Rotation.from_euler("Z", theta, degrees=False)
+        return state @ R.as_matrix()
+
+    # Transform Earth-Centered Earth-Fixed to Geocentric coordinates
+    @staticmethod
+    def Ecef2Geoc(state: np.ndarray[float], r: float):
+        geoc = np.zeros(3)
+        geoc[0] = math.degrees(math.atan2(state[1], state[0]))  # longitude
+        geoc[1] = math.degrees(math.asin(state[2] / np.linalg.norm(state)))  # latitude
+        geoc[2] = np.linalg.norm(state) - r  # altitude
+        return geoc
+
+    def propagate(self, dt: float, tspan: int) -> np.ndarray[float]:
+        """
+        Propagate the orbit to a future time.
+
+        :param dt: Time step for the numerical integration.
+        :param tspan: Duration of the simulation.
+        :return: An array of state vectors at each time step.
+        """
+
+        steps = int(tspan / dt)
+
+        states = np.zeros(steps, 6)
+        states[0] = self.state
+
+        statesGeoc = np.zeros(steps, 3)
+        statesGeoc[0] = self.Ecef2Geoc(
+            self.Eci2Ecef(self.state[:3], 0), self.body.radius
         )
+
+        DiffEqn = lambda state: TwoBodyODE(state, self.mu)
+
+        for i in range(self.steps - 1):
+            states[i + 1] = self.RK4(DiffEqn, states[i], self.dt)
+            statesGeoc[i + 1] = self.satellite.get_state_geoc(self.time + (i + 1) * self.dt)
+            self.satellite.state = states[i + 1]
+
+        return states, statesGeoc
