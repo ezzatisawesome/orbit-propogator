@@ -4,7 +4,7 @@ from typing import Tuple
 from scipy.spatial.transform import Rotation
 from datetime import datetime
 from body.Body import Body
-from models.ClassicalOrbitalElements import ClassicalOrbitalElements
+from dataclasses.ClassicalOrbitalElements import ClassicalOrbitalElements
 
 
 class Orbit:
