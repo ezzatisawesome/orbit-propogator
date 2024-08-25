@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import math
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -139,32 +139,48 @@ class Orbit:
         geoc[2] = np.linalg.norm(state) - r  # altitude
         return geoc
 
-    def propagate(self, dt: float, tspan: int) -> np.ndarray[float]:
+    def get_state_eci(self) -> np.ndarray[float]:
+        """
+        :return: earth-centered inertial coordinates [x, y, z, vx, vy, vz]
+        """
+        return self.state
+
+    def get_state_ecef(self, t: float) -> np.ndarray[float]:
+        """
+        :param t: time in seconds since epoch
+        :return: earth-centered earth-fixed coordinates [x, y, z]
+        """
+        state = self.state[:3]
+        return self.Eci2Ecef(state, t)
+
+    def get_state_geoc(self, t: float) -> np.ndarray[float]:
+        """
+        :param t: time in seconds since epoch
+        :return: geocentric coordinates [longitude, latitude, altitude]
+        """
+        return self.Ecef2Geoc(self.get_state_ecef(t), self.body.radius)
+
+    def propagate(self, tspan: int, dt: int) -> np.ndarray[float]:
         """
         Propagate the orbit to a future time.
 
-        :param dt: Time step for the numerical integration.
         :param tspan: Duration of the simulation.
+        :param dt: Time step for the numerical integration.
         :return: An array of state vectors at each time step.
         """
 
         steps = int(tspan / dt)
 
-        states = np.zeros((steps, 6))
-        states[0] = self.state
-
-        statesGeoc = np.zeros((steps, 3))
-        statesGeoc[0] = self.Ecef2Geoc(
-            self.Eci2Ecef(self.state[:3], 0), self.body.radius
-        )
+        newStates = np.zeros((steps, 6))
+        newStatesGeoc = np.zeros((steps, 3))
 
         DiffEqn = lambda state: TwoBodyODE(state, self.body.gravitational_parameter)
 
-        for i in range(steps - 1):
-            states[i + 1] = self.RK4(DiffEqn, states[i], self.dt)
-            statesGeoc[i + 1] = self.satellite.get_state_geoc(
-                self.time + (i + 1) * self.dt
-            )
-            self.satellite.state = states[i + 1]
+        for i in range(steps):
+            newStates[i] = RK4(DiffEqn, self.state, dt)
+            newStatesGeoc[i] = self.get_state_geoc(self.time.timestamp() + i * dt)
+            self.state = newStates[i]
+            self.time += timedelta(seconds=dt)
 
-        return states, statesGeoc
+
+        return newStates, newStatesGeoc
