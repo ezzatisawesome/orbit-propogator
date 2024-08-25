@@ -1,71 +1,47 @@
+from datetime import datetime 
 import matplotlib.pyplot as plt
-from datetime import datetime
 
 from src.orbit import Orbit
-from src.satellite import Satellite
-from src.propagate import Propagate
-from src.plot import plot_groundtracks, plot_eci
-from src.utils import in_eclipse
-from stk_data import getStkData
+from src.bodies import Earth
+from src.dataclasses import ClassicalOrbitalElements
+from src.plot import plot_eci
 
-# Simulation parameters
-sim_duration = 60.0 * 60 * 12  # seconds
-dt = 10
 
 # Epoch (Vernal Equinox 2024)
 year = 2024
 month = 3
 day = 20
-hour = 6  #! Check w/ Troy for times of a dusk/dawn orbit
+hour = 6 
 minute = 0
 second = 0
-t0 = datetime(year, month, day, hour, minute, second).timestamp()
+t0 = datetime(year, month, day, hour, minute, second)
+
 
 # Satellite orbit
-coesSat = [7641.80, 0.00000001, 100.73, 0, 0, 90]  # sma, ecc, inc, ta, aop, raan
-orbit = Orbit(coesSat)
-satellite = Satellite(1400, orbit)  # ! Need to fix satellite mass
-propagateSat = Propagate(satellite, sim_duration, dt)
-statesSat, statesGeocSat = propagateSat.propagate(t0, options={"j2": True})
+coesSat = ClassicalOrbitalElements(7641.80, 0.00000001, 100.73, 0, 0, 90)
+orbit = Orbit.from_coes(coesSat, Earth, t0)
 
-# Sun orbit
-coesSun = [149.598e6, 0.0000001, 23.4406, 0, 0, 0]
-orbitSun = Orbit(coesSun)
-sun = Satellite(1.989e30, orbitSun, options={"sun": True})
-propagateSun = Propagate(sun, sim_duration, dt)
-statesSun, statesGeocSun = propagateSun.propagate(t0, options={"j2": False})
+# Output:
+statesSat = []
+statesGeocSat = []
 
-# Moon orbit
-coesMoon = [384399, 0.0549, 5.145, 0, 0, 0]
-orbitMoon = Orbit(coesMoon)
-moon = Satellite(7.34767309e22, orbitMoon, options={"moon": True})
-propagateMoon = Propagate(moon, sim_duration, dt)
-statesMoon, statesGeocMoon = propagateMoon.propagate(t0, options={"j2": True})
+# Propagate 1 minute
+for i in range(3600):
+    states, statesGeoc = orbit.propagate(1, 1)
+    statesSat.append(states[0])
+    statesGeocSat.append(statesGeoc[0])
+    print(type(states))
 
-# Check for eclipses
-# stateEclipse, sunDot, perpNorm = in_eclipse(statesSat, statesSun)
-# file_name = 'eclipse.txt'
-# file = open(file_name, 'w')
-# for (i, state) in enumerate(stateEclipse):
-#     if (state):
-#         # print(f'In eclipse at {datetime.fromtimestamp(t0 + i * dt)}')
-#         file.write(f'In eclipse at {datetime.fromtimestamp(t0 + i * dt)}; {sunDot[i]}; {perpNorm[i]}\n')
-# file.close()
 
-# Getting STK data
-# stateSatSTK = getStkData()
-
-# Plot
-# plot_groundtracks([statesGeocSat, statesGeocSun])
+# Plot the satellite trajectory
+print(statesSat)
 plot_eci(
-    [statesSat, statesSun, statesMoon],
+    [statesSat],
     {
         "cb_axes_color": "k",
         "opacity": 0.5,
         "figsize": (20, 10),
-        "title": "Satellite Orbit",
-        "draw_sun": True,
-        "draw_moon": True,
+        "title": "Satellite Orbit"
     },
 )
 plt.show()
