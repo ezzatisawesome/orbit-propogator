@@ -23,7 +23,7 @@ class Orbit:
         :param body: An instance of the Body class representing the celestial body.
         :param epoch: Initializing time of orbit.
         """
-        self.mu = body.gravitational_parameter
+        self.body = body
         self.time = epoch
         self.state = state
 
@@ -42,7 +42,7 @@ class Orbit:
         :param epoch: Initializing time of orbit.
         :return: An instance of the Orbit class.
         """
-        print(body.gravitational_parameter)
+
         state = cls.Coes2State(coes, body.gravitational_parameter)
         return cls(state, body, epoch)
 
@@ -82,7 +82,7 @@ class Orbit:
 
     @staticmethod
     def State2Coes(
-        state: np.ndarray[float], mu
+        state: np.ndarray[float], mu: float
     ) -> Tuple[float, float, float, float, float, float]:
         r_vec = state[:3]
         v_vec = state[3:]
@@ -150,19 +150,21 @@ class Orbit:
 
         steps = int(tspan / dt)
 
-        states = np.zeros(steps, 6)
+        states = np.zeros((steps, 6))
         states[0] = self.state
 
-        statesGeoc = np.zeros(steps, 3)
+        statesGeoc = np.zeros((steps, 3))
         statesGeoc[0] = self.Ecef2Geoc(
             self.Eci2Ecef(self.state[:3], 0), self.body.radius
         )
 
-        DiffEqn = lambda state: TwoBodyODE(state, self.mu)
+        DiffEqn = lambda state: TwoBodyODE(state, self.body.gravitational_parameter)
 
-        for i in range(self.steps - 1):
+        for i in range(steps - 1):
             states[i + 1] = self.RK4(DiffEqn, states[i], self.dt)
-            statesGeoc[i + 1] = self.satellite.get_state_geoc(self.time + (i + 1) * self.dt)
+            statesGeoc[i + 1] = self.satellite.get_state_geoc(
+                self.time + (i + 1) * self.dt
+            )
             self.satellite.state = states[i + 1]
 
         return states, statesGeoc
