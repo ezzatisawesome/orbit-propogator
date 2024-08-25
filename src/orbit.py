@@ -2,36 +2,81 @@ import math
 import numpy as np
 from typing import Tuple
 from scipy.spatial.transform import Rotation
+from datetime import datetime
+from body.Body import Body
+from models.ClassicalOrbitalElements import ClassicalOrbitalElements
+
 
 class Orbit:
-    def __init__(self, coes: Tuple[float, float, float, float, float, float]):
-        self.coes = coes
-    
-    # Convert Classical Orbital Elements to State Vector
-    @staticmethod
-    def Coes2State(coes: Tuple[float, float, float, float, float, float], mu: float) -> np.ndarray[float]:
-        sma, ecc, inc, ta, aop, raan = coes
+    # Default epoch: Vernal Equinox 2024 (March 20, 06:00 UTC)
+    DEFAULT_EPOCH = datetime(2024, 3, 20, 6, 0, 0)
 
+    def __init__(self, state: np.ndarray, body: Body, epoch: datetime = DEFAULT_EPOCH):
+        """
+        Initialize the Orbit object using a state vector and a celestial body.
+
+        :param state: State vector (position and velocity) as a NumPy array.
+        :param body: An instance of the Body class representing the celestial body.
+        :param epoch: The time at which the orbit elements are valid.
+        """
+        self.mu = body.gravitational_parameter
+        self.epoch = epoch
+        self.state = state
+
+    def from_coes(
+        cls,
+        coes: ClassicalOrbitalElements,
+        body: Body,
+        epoch: datetime = DEFAULT_EPOCH,
+    ):
+        """
+        Initialize the Orbit object using classical orbital elements and a celestial body.
+
+        :param coes: Tuple of classical orbital elements (sma, ecc, inc, raan, aop, ta).
+        :param body: An instance of the Body class representing the celestial body.
+        :param epoch: The time at which the orbit elements are valid.
+        :return: An instance of the Orbit class.
+        """
+        state = cls.Coes2State(coes, body.gravitational_parameter)
+        return cls(state, body, epoch)
+
+    def from_state(cls, state: np.ndarray, body: Body, epoch: datetime = DEFAULT_EPOCH):
+        """
+        Initialize the Orbit object using a state vector and a celestial body.
+
+        :param state: State vector (position and velocity) as a NumPy array.
+        :param body: An instance of the Body class representing the celestial body.
+        :param epoch: The time at which the orbit elements are valid.
+        :return: An instance of the Orbit class.
+        """
+        coes = cls.State2Coes(state, body.gravitational_parameter)
+        return cls(state, body, epoch)
+
+        # Convert Classical Orbital Elements to State Vector
+
+    @staticmethod
+    def Coes2State(coes: ClassicalOrbitalElements, mu: float) -> np.ndarray[float]:
         # calculate orbital angular momentum of satellite
-        h = math.sqrt(mu * (sma * (1 - ecc**2)))
+        h = math.sqrt(mu * (coes.sma * (1 - coes.ecc**2)))
         # h = 1.6041e13
 
-        cos_ta = math.cos(math.radians(ta))
-        sin_ta = math.sin(math.radians(ta))
+        cos_ta = math.cos(math.radians(coes.ta))
+        sin_ta = math.sin(math.radians(coes.ta))
 
-        r_w = h ** 2 / mu / (1 + ecc * cos_ta) * \
-            np.array((cos_ta, sin_ta, 0))
-        v_w = mu / h * np.array((-sin_ta, ecc + cos_ta, 0))
+        r_w = h**2 / mu / (1 + coes.ecc * cos_ta) * np.array((cos_ta, sin_ta, 0))
+        v_w = mu / h * np.array((-sin_ta, coes.ecc + cos_ta, 0))
 
         # rotate to inertian frame
-        R = Rotation.from_euler("ZXZ", [-aop, -inc, -raan], degrees=True)
+        R = Rotation.from_euler("ZXZ", [-coes.aop, -coes.inc, -coes.raan], degrees=True)
         r_rot = r_w @ R.as_matrix()
         v_rot = v_w @ R.as_matrix()
 
         return np.concatenate((r_rot, v_rot))
-    
+
     @staticmethod
-    def State2Coes(state: np.ndarray[float], mu) -> Tuple[float, float, float, float, float, float]:
+    def State2Coes(
+        state: np.ndarray[float], mu
+    ) -> Tuple[float, float, float, float, float, float]:
         r_vec = state[:3]
         v_vec = state[3:]
 
@@ -39,7 +84,7 @@ class Orbit:
         r = np.linalg.norm(r_vec)
         v = np.linalg.norm(v_vec)
         v_r = np.dot(r_vec / r, v_vec)
-        v_p = np.sqrt(v ** 2 - v_r ** 2)
+        v_p = np.sqrt(v**2 - v_r**2)
 
         # Orbital angular momentum
         h_vec = np.cross(r_vec, v_vec)
@@ -65,5 +110,11 @@ class Orbit:
         # True anomaly
         ta = np.arccos(np.dot(r_vec / r, e_vec / ecc))
 
-
-        return np.array((sma, ecc, inc, ta, aop, raan))
+        return ClassicalOrbitalElements(
+            sma,
+            ecc,
+            inc,
+            ta,
+            aop,
+            raan
+        )
