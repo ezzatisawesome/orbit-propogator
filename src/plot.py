@@ -78,6 +78,7 @@ def plot_eci(rs, args):
     max_val = 0
     n = 0
     for r in rs:
+        r = np.array(r)
         ax.plot(r[:, 0], r[:, 1], r[:, 2],
                 color=_args['colors'][n], label=_args['labels'][n],
                 zorder=10, linewidth=_args['traj_lws'], alpha=_args['opacity'],)
