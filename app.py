@@ -1,4 +1,6 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS  # Import the CORS module
+
 from datetime import datetime
 from marshmallow import Schema, fields, ValidationError
 
@@ -8,6 +10,7 @@ from src.dataclasses import ClassicalOrbitalElements
 
 
 app = Flask(__name__)
+CORS(app)
 
 class InputSchema(Schema):
     time = fields.Int(required=True)  # Time in milliseconds
@@ -16,7 +19,7 @@ class InputSchema(Schema):
     propagation_step = fields.Int(required=True)
 
 
-@app.route("/", methods=["POST"])
+@app.route("/propagate", methods=["POST"])
 def hello_world():
     # Validate and deserialize input
     schema = InputSchema()
