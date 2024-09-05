@@ -56,7 +56,6 @@ class Orbit:
         :param epoch: Initializing time of orbit.
         :return: An instance of the Orbit class.
         """
-        coes = cls.State2Coes(state, body.gravitational_parameter)
         return cls(state, body, epoch)
 
         # Convert Classical Orbital Elements to State Vector
