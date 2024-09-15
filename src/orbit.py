@@ -168,18 +168,19 @@ class Orbit:
         :return: An array of state vectors at each time step.
         """
 
-        steps = int(tspan / dt)
+        steps = int(abs(tspan) / dt)
 
         newStates = np.zeros((steps, 6))
         newStatesGeoc = np.zeros((steps, 3))
 
-        DiffEqn = lambda state: TwoBodyODE(state, self.body.gravitational_parameter)
+        diffEqn = lambda state: TwoBodyODE(state, self.body.gravitational_parameter)
 
         for i in range(steps):
-            newStates[i] = RK4(DiffEqn, self.state, dt)
-            newStatesGeoc[i] = self.get_state_geoc(self.time.timestamp() + i * dt)
+            newStates[i] = RK4(diffEqn, self.state, math.copysign(dt, tspan))
+            print(math.copysign(dt, tspan))
+            newStatesGeoc[i] = self.get_state_geoc(self.time.timestamp() + i * math.copysign(dt, tspan))
             self.state = newStates[i]
-            self.time += timedelta(seconds=dt)
+            self.time += timedelta(seconds=math.copysign(dt, tspan))
 
 
         return newStates, newStatesGeoc

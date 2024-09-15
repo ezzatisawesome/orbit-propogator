@@ -36,7 +36,7 @@ def ODE(state: np.ndarray[float], mu: float) -> np.ndarray[float]:
 
     state_dot = np.zeros(6)
 
-    # Newton's Universal Law of Gravitation)
+    # Newton's Universal Law of Gravitation
     a = TwoBodyODE(state, mu)
 
     # J2 Perturbation
