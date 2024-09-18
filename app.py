@@ -36,7 +36,7 @@ def propagate():
 
     # Pull out time variables
     span = body['propagation_span']
-    dt = body['propagation_step']
+    signedDt = np.copysign(body['propagation_step'], span)
 
     # Set up orbit
     elements = body['elements']
@@ -58,8 +58,8 @@ def propagate():
     statesGeocSat = []
 
     # Propagate
-    for i in range(span):
-        states, statesGeoc = orbit.propagate(dt, 1)
+    for i in range(abs(span)):
+        states, statesGeoc = orbit.propagate(signedDt, 1)
         statesSat.append(states[0].tolist())
         statesGeocSat.append(statesGeoc[0].tolist())
 

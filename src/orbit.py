@@ -169,6 +169,7 @@ class Orbit:
         """
 
         steps = int(abs(tspan) / dt)
+        signedDt = math.copysign(dt, tspan)
 
         newStates = np.zeros((steps, 6))
         newStatesGeoc = np.zeros((steps, 3))
@@ -176,11 +177,10 @@ class Orbit:
         diffEqn = lambda state: TwoBodyODE(state, self.body.gravitational_parameter)
 
         for i in range(steps):
-            newStates[i] = RK4(diffEqn, self.state, math.copysign(dt, tspan))
-            print(math.copysign(dt, tspan))
-            newStatesGeoc[i] = self.get_state_geoc(self.time.timestamp() + i * math.copysign(dt, tspan))
+            newStates[i] = RK4(diffEqn, self.state, signedDt)
+            newStatesGeoc[i] = self.get_state_geoc(self.time.timestamp() + i*signedDt)
             self.state = newStates[i]
-            self.time += timedelta(seconds=math.copysign(dt, tspan))
+            self.time += timedelta(seconds=signedDt)
 
 
         return newStates, newStatesGeoc
