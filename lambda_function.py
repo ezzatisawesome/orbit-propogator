@@ -1,8 +1,8 @@
 import json
 from main import propagate_orbit  # Import the core function
 
-def lambda_handler(event, context):
-    body = json.loads(event.get('body', '{}'))  # Get request body from the Lambda event
+def propagate(event, context):
+    body = event # Get request body from the Lambda event
     result, status_code = propagate_orbit(body)  # Call the core logic function
 
     # Format the response for API Gateway
