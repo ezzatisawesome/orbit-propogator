@@ -3,6 +3,7 @@ from main import propagate_orbit  # Import the core function
 
 def propagate(event, context):
     body = event # Get request body from the Lambda event
+    print(body)
     result, status_code = propagate_orbit(body)  # Call the core logic function
 
     # Format the response for API Gateway

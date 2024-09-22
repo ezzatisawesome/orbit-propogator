@@ -1,0 +1,29 @@
+# Ignore Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore node_modules
+node_modules/
+cdk/node_modules/
+
+# Ignore the cdk.out folder, which contains build output files
+cdk/cdk.out/
+
+# Ignore local configuration files
+*.env
+*.local
+*.log
+
+# Ignore git files and directories
+.git
+.gitignore
+
+# Ignore Dockerfile and docker-compose files
+Dockerfile
+docker-compose.yml
+
+# Ignore any tests or temporary files (optional, if present)
+tests/
+tmp/
