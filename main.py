@@ -1,4 +1,3 @@
-import json
 import numpy as np
 from datetime import datetime
 from marshmallow import Schema, fields, ValidationError
